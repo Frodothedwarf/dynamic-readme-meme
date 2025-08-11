@@ -1,29 +1,60 @@
 from sources.reddit import RedditMeme
-from image.downloader import download_image
-from image.generator import add_title_above_file
+from sources.programmerhumor import ProgrammerHumorMeme
 from dotenv import load_dotenv
-
+from sources.base import MediaType
+from datetime import datetime
 load_dotenv()
 
 REDDIT_SUBREDDITS = [
+    "blunderyears",
+    "BreadStapledToTrees",
+    "cringepics",
+    "CrappyDesign",
+    "dankmemes",
+    "disneyvacation",
+    "facepalm",
+    "funny",
+    "gifs",
+    "holdmybeer",
+    "iamverysmart",
+    "Jokes",
+    "memes",
+    "MildlyVandalised",
+    "nocontextpics",
+    "PerfectTiming",
     "ProgrammerHumor",
     "programminghumor",
-    "funny",
-    "memes",
-    "dankmemes"
+    "trippinthroughtime",
+]
+
+REDDIT_MEDIA_TYPES = [
+    MediaType.IMAGE,
+    MediaType.GIF
 ]
 
 def main(*args, **kwargs):
+    programmer_humor = ProgrammerHumorMeme()
     reddit = RedditMeme()
 
-    for sub in REDDIT_SUBREDDITS:
-        meme = reddit.fetch_meme(sub)
+    for subreddit in REDDIT_SUBREDDITS:
+        memes = reddit.fetch_meme(subreddit, "day", REDDIT_MEDIA_TYPES)
+
+        for meme in memes:
+            pathTitle = meme.title.replace(" ", "")
+            
+            meme_og_path = f"./memes/reddit/{subreddit}/originals/{pathTitle}{datetime.today().strftime('%Y%m%d')}{meme.get_extension()}"
+            meme_edited_path = f"./memes/reddit/{subreddit}/picked/todays_{meme.get_extension().replace('.', '')}{meme.get_extension()}"
+            
+            meme.download_image(meme_og_path, meme_edited_path)
+
+    programmer_humor_memes = programmer_humor.fetch_meme()
+    for meme in programmer_humor_memes:
         pathTitle = meme.title.replace(" ", "")
-        image = download_image(meme.media_url, f"./{pathTitle}.png")
 
-        add_title_above_file(image, meme.title, f"{pathTitle}edited.png")
+        meme_og_path = f"./memes/programmerhumor/originals/{pathTitle}{datetime.today().strftime('%Y%m%d')}{meme.get_extension()}"
+        meme_edited_path = f"./memes/programmerhumor/picked/todays_{meme.get_extension().replace('.', '')}{meme.get_extension()}"
 
-
+        meme.download_image(meme_og_path, meme_edited_path)
 
 if __name__ == "__main__":
     main()
