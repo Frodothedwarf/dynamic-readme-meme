@@ -21,9 +21,8 @@ Fetches fresh memes (images & GIFs) from a few sources and commits them into thi
 
   * Originals and “picked” file go to structured paths like:
 
-    * `./memes/programmerhumor/originals/<title><YYYYMMDD>.<ext>`
-    * `./memes/programmerhumor/picked/todays_<ext>.<ext>`
-    * `./memes/reddit/<subreddit>/{originals|picked}/...`
+    * `./memes/programmerhumor/{todays_<ext>.<ext>|original_todays_<ext>.<ext>}`
+    * `./memes/reddit/<subreddit>/{todays_<ext>.<ext>|original_todays_<ext>.<ext>}`
 
 ## Usage
 
