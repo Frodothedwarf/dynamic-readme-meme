@@ -31,8 +31,10 @@ jobs:
         with:
           python-version: '3.13'
 
-      - name: "Install Python dependencies"
-        run: pip install -r python-memer/requirements.txt
+      - name: "Install dependencies"
+        run: |
+          pip install -r python-memer/requirements.txt
+          sudo apt install -y gifsicle
 
       - name: "Fetch all meme sources"
         env:
