@@ -3,7 +3,7 @@ name: Fetch Memes (Cronjob)
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 2 * * **"
+    - cron: "0 2 * * *"
 
 jobs:
   fetch-memes:
@@ -13,11 +13,16 @@ jobs:
       contents: write
 
     steps:
-      - name: "Checkout code"
-        uses: actions/checkout@v3
+      - name: "Checkout (blobless, no memes)"
+        uses: actions/checkout@v4
         with:
-          sparse-checkout: |
-            python-memer
+          fetch-depth: 0
+          filter: blob:none
+
+      - name: "Limit working tree to code only"
+        run: |
+          git sparse-checkout init --cone
+          git sparse-checkout set python-memer
 
       - name: "Setup Python"
         uses: actions/setup-python@v3
@@ -29,6 +34,10 @@ jobs:
         run: pip install -r python-memer/requirements.txt
 
       - name: "Fetch all meme sources"
+        env:
+          REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
+          REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
+          REDDIT_USER_AGENT: ${{ secrets.REDDIT_USER_AGENT }}
         run: |
           python python-memer/main.py
 
@@ -37,13 +46,12 @@ jobs:
           git config user.name  "${{ github.actor }}"
           git config user.email "${{ github.actor }}@users.noreply.github.com"
 
-          git add -f -A -- memes/
+          git add --sparse -f memes/
 
           if git diff --cached --quiet; then
             echo "No changes in memes/"; exit 0
           fi
 
           git commit -m "Push daily memes [skip ci]" -- memes/
-
           git pull --rebase origin main
           git push origin HEAD:main
