@@ -4,6 +4,7 @@ from typing import Any
 from PIL import Image, ImageDraw, ImageFont
 from pygifsicle import gifsicle
 
+
 def _candidate_fonts() -> list[str]:
     """Return a list of existing font file paths to try in order."""
     return [
@@ -235,11 +236,13 @@ def _compose_with_title(frame_rgb: Image.Image, layout: dict[str, Any]) -> Image
     )
     return output_img
 
+
 def is_file_over_mb(filepath, mb_limit):
     """Check if file is larger than mb_limit MB."""
     file_size_bytes = os.path.getsize(filepath)
     file_size_mb = file_size_bytes / (1024 * 1024)
     return file_size_mb > mb_limit
+
 
 def add_title_above_file(
     input_path: str,
@@ -381,5 +384,5 @@ def add_title_above_file(
                 sources=[output_path],
                 optimize=True,
                 colors=128,
-                options=["--verbose", "--lossy=50"]
+                options=["--verbose", "--lossy=50"],
             )
