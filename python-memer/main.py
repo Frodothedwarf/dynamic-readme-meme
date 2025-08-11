@@ -1,8 +1,8 @@
-from sources.reddit import RedditMeme
-from sources.programmerhumor import ProgrammerHumorMeme
 from dotenv import load_dotenv
 from sources.base import MediaType
-from datetime import datetime
+from sources.programmerhumor import ProgrammerHumorMeme
+from sources.reddit import RedditMeme
+
 load_dotenv()
 
 REDDIT_SUBREDDITS = [
@@ -27,34 +27,20 @@ REDDIT_SUBREDDITS = [
     "trippinthroughtime",
 ]
 
-REDDIT_MEDIA_TYPES = [
-    MediaType.IMAGE,
-    MediaType.GIF
-]
+REDDIT_MEDIA_TYPES = [MediaType.IMAGE, MediaType.GIF]
+
 
 def main(*args, **kwargs):
+    """
+    The main function that should contain all sources, and download memes for all sources.
+    """
+
     programmer_humor = ProgrammerHumorMeme()
-    reddit = RedditMeme()
+    reddit = RedditMeme(subreddits=REDDIT_SUBREDDITS, media_types=REDDIT_MEDIA_TYPES)
 
-    for subreddit in REDDIT_SUBREDDITS:
-        memes = reddit.fetch_meme(subreddit, "day", REDDIT_MEDIA_TYPES)
+    reddit.fetch_and_download_memes()
+    programmer_humor.fetch_and_download_memes()
 
-        for meme in memes:
-            pathTitle = meme.title.replace(" ", "")
-            
-            meme_og_path = f"./memes/reddit/{subreddit}/originals/{pathTitle}{datetime.today().strftime('%Y%m%d')}{meme.get_extension()}"
-            meme_edited_path = f"./memes/reddit/{subreddit}/picked/todays_{meme.get_extension().replace('.', '')}{meme.get_extension()}"
-            
-            meme.download_image(meme_og_path, meme_edited_path)
-
-    programmer_humor_memes = programmer_humor.fetch_meme()
-    for meme in programmer_humor_memes:
-        pathTitle = meme.title.replace(" ", "")
-
-        meme_og_path = f"./memes/programmerhumor/originals/{pathTitle}{datetime.today().strftime('%Y%m%d')}{meme.get_extension()}"
-        meme_edited_path = f"./memes/programmerhumor/picked/todays_{meme.get_extension().replace('.', '')}{meme.get_extension()}"
-
-        meme.download_image(meme_og_path, meme_edited_path)
 
 if __name__ == "__main__":
     main()

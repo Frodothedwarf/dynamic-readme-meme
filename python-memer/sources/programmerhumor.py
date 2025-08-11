@@ -1,7 +1,8 @@
-from sources.base import MemeBase, MediaType, Meme
-from bs4 import BeautifulSoup
 import requests
 from base import USER_AGENT_HEADERS
+from bs4 import BeautifulSoup
+from sources.base import MediaType, Meme, MemeBase
+
 
 class ProgrammerHumorMeme(MemeBase):
     MEME_URL = "https://programmerhumor.io/hot"
@@ -20,5 +21,12 @@ class ProgrammerHumorMeme(MemeBase):
         image_title = image.attrs["alt"]
 
         return [
-            self.convert_to_object(image_src, MediaType.IMAGE, "ProgrammerHumor.io", image_title)
+            self.convert_to_object(
+                image_src, MediaType.IMAGE, "programmerhumorio", image_title
+            )
         ]
+
+    def fetch_and_download_memes(self) -> None:
+        programmer_humor_memes = self.fetch_meme()
+        for meme in programmer_humor_memes:
+            meme.download_image_and_convert()
