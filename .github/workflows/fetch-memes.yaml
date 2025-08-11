@@ -18,6 +18,7 @@ jobs:
       - name: "Checkout (blobless, no memes)"
         uses: actions/checkout@v4
         with:
+          token: ${{ secrets.BOT_TOKEN }}
           fetch-depth: 0
           filter: blob:none
 
@@ -64,7 +65,7 @@ jobs:
 
           git checkout -b "$BRANCH"
           git commit -m "chore(memes): daily memes for ${DATE}"
-          git push -u origin "$BRANCH"
+          git push "https://x-access-token:${{ secrets.BOT_TOKEN }}@github.com/${{ github.repository }}.git" "$BRANCH"
 
           echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
           echo "date=$DATE" >> "$GITHUB_OUTPUT"
@@ -73,7 +74,7 @@ jobs:
       - name: Create pull request with daily memes
         if: steps.commit.outputs.changed == 'true'
         env:
-          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ secrets.BOT_TOKEN }}
         run: |
           TITLE="Daily memes (${{ steps.commit.outputs.date }})"
           BODY="Automated PR with daily memes."
@@ -83,19 +84,12 @@ jobs:
             --head "${{ steps.commit.outputs.branch }}" \
             --title "$TITLE" \
             --body "$BODY"
-
-      - name: Trigger CI for the PR branch
-        if: steps.commit.outputs.changed == 'true'
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-        run: |
-          gh workflow run pre-commit --ref "${{ steps.commit.outputs.branch }}"
-          sleep 5s
+          sleep 10s
 
       - name: Wait for pre-commit CI to finish
         if: steps.commit.outputs.changed == 'true'
         env:
-          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ secrets.BOT_TOKEN }}
         run: |
           gh pr checks \
             ${{ steps.commit.outputs.branch }} \
@@ -105,7 +99,7 @@ jobs:
       - name: Merge pull request into main
         if: steps.commit.outputs.changed == 'true'
         env:
-          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ secrets.BOT_TOKEN }}
         run: |
           PR_NUMBER="$(gh pr view "${{ steps.commit.outputs.branch }}" --json number -q .number)"
           gh pr merge "$PR_NUMBER" --squash --delete-branch --admin
