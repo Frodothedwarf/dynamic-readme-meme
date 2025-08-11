@@ -1,3 +1,5 @@
+import re
+import unicodedata
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
@@ -38,6 +40,11 @@ class Meme:
     def __str__(self) -> str:
         return f"Meme | {self.title} | {self.source}"
 
+    def prepare_title_for_path(self, title):
+        title = unicodedata.normalize("NFKD", title)
+        title = title.encode("ascii", "ignore").decode("ascii")
+        return re.sub(r"[^a-z0-9]", "", title.lower())
+
     def get_extension(self) -> str:
         """
         Should be able to get the extension of the media.
@@ -76,7 +83,7 @@ class Meme:
         """
 
         image_extension = self.get_extension()
-        path_title = self.title.replace(" ", "")
+        path_title = self.prepare_title_for_path(self.title)
 
         og_path = f"./memes/{self.source}/originals/{path_title}{datetime.today().strftime('%Y%m%d')}{image_extension}"
         edited_path = f"./memes/{self.source}/picked/todays_{image_extension.replace('.', '')}{image_extension}"
