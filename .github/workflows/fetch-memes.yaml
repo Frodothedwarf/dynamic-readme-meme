@@ -11,6 +11,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      pull-requests: write
+      actions: read
 
     steps:
       - name: "Checkout (blobless, no memes)"
@@ -41,16 +43,60 @@ jobs:
           python python-memer/main.py
 
       - name: "Commit & push daily memes"
+        id: commit
         run: |
+          set -euo pipefail
+          DATE="$(date -u +%Y%m%d)"
+          BRANCH="memes/${DATE}-${GITHUB_RUN_ID}"
+
           git config user.name  "${{ github.actor }}"
           git config user.email "${{ github.actor }}@users.noreply.github.com"
 
-          git add --sparse -f memes/
+          git add --sparse -f memes/ || true
 
           if git diff --cached --quiet; then
-            echo "No changes in memes/"; exit 0
+            echo "No changes in memes/"
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
 
-          git commit -m "Push daily memes [skip ci]" -- memes/
-          git pull --rebase origin main
-          git push origin HEAD:main
+          git checkout -b "$BRANCH"
+          git commit -m "chore(memes): daily memes for ${DATE} [skip ci]"
+          git push -u origin "$BRANCH"
+
+          echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
+          echo "date=$DATE" >> "$GITHUB_OUTPUT"
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Create pull request with daily memes
+        if: steps.commit.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TITLE="Daily memes (${{ steps.commit.outputs.date }})"
+          BODY="Automated PR with daily memes."
+
+          gh pr create \
+            --base main \
+            --head "${{ steps.commit.outputs.branch }}" \
+            --title "$TITLE" \
+            --body "$BODY"
+
+      - name: Wait for pre-commit CI to finish
+        if: steps.commit.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Change to match the exact workflow name or file for pre-commit
+          gh run watch \
+            --exit-status \
+            --ref "${{ steps.commit.outputs.branch }}" \
+            --workflow "pre-commit"
+
+      - name: Merge pull request into main
+        if: steps.commit.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          PR_NUMBER="$(gh pr view "${{ steps.commit.outputs.branch }}" --json number -q .number)"
+          gh pr merge "$PR_NUMBER" --squash --delete-branch --admin
