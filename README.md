@@ -1,5 +1,5 @@
 <p align="center">
-    <img alt="Meme of the day" src="https://raw.githubusercontent.com/Frodothedwarf/dynamic-readme-meme/refs/heads/main/memes/programmerhumorio/picked/todays_png.png" height="300">
+    <img alt="Meme of the day" src="https://raw.githubusercontent.com/Frodothedwarf/dynamic-readme-meme/refs/heads/main/memes/programmerhumorio/todays_png.png" height="300">
     <br />
     <i>Todays meme from ProgrammerHumor.io</i>
 </p>
@@ -31,19 +31,19 @@ Since the workflow writes consistent “picked” filenames, you can embed a sta
 
 ```md
 <!-- Show today’s meme (PNG or GIF depending on the day) -->
-<img alt="Meme of the day" src="https://raw.githubusercontent.com/Frodothedwarf/dynamic-readme-meme/refs/heads/main/memes/programmerhumorio/picked/todays_png.png" height="500">
+<img alt="Meme of the day" src="https://raw.githubusercontent.com/Frodothedwarf/dynamic-readme-meme/refs/heads/main/memes/programmerhumorio/todays_png.png" height="500">
 ```
 
 Or, for GIF:
 
 ```md
-<img alt="Meme of the day" src="https://raw.githubusercontent.com/Frodothedwarf/dynamic-readme-meme/refs/heads/main/memes/reddit/ProgrammerHumor/picked/todays_gif.gif" height="500">
+<img alt="Meme of the day" src="https://raw.githubusercontent.com/Frodothedwarf/dynamic-readme-meme/refs/heads/main/memes/reddit/ProgrammerHumor/todays_gif.gif" height="500">
 ```
 
 Reddit examples:
 
 ```md
-<img alt="Meme of the day" src="https://raw.githubusercontent.com/Frodothedwarf/dynamic-readme-meme/refs/heads/main/memes/reddit/ProgrammerHumor/picked/todays_png.png" height="500">
+<img alt="Meme of the day" src="https://raw.githubusercontent.com/Frodothedwarf/dynamic-readme-meme/refs/heads/main/memes/reddit/ProgrammerHumor/todays_png.png" height="500">
 ```
 
 Extensions depend on the fetched media type; the script writes `todays_<ext>.<ext>`.
