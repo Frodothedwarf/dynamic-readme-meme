@@ -18,20 +18,20 @@ jobs:
         with:
           sparse-checkout: |
             python-memer
-      
+
       - name: "Setup Python"
         uses: actions/setup-python@v3
         with:
           python-version: '3.13'
           cache: 'pip'
-        
+
       - name: "Install Python dependencies"
         run: pip install -r python-memer/requirements.txt
 
       - name: "Fetch all meme sources"
         run: |
           python python-memer/main.py
-      
+
       - name: "Commit & push daily memes"
         run: |
           git config user.name  "${{ github.actor }}"
