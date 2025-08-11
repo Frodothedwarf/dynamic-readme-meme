@@ -87,10 +87,10 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
-          gh run watch \
-            --exit-status \
-            --ref "${{ steps.commit.outputs.branch }}" \
-            --workflow "pre-commit"
+          gh pr checks \
+            ${{ steps.commit.outputs.branch }} \
+            --watch \
+            --required
 
       - name: Merge pull request into main
         if: steps.commit.outputs.changed == 'true'
