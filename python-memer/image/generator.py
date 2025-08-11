@@ -1,12 +1,14 @@
 import os
+from typing import Any
 
 from PIL import Image, ImageDraw, ImageFont
 
 
 def _candidate_fonts() -> list[str]:
+    """Return a list of existing font file paths to try in order."""
     return [
-        font_path_candidate
-        for font_path_candidate in [
+        p
+        for p in [
             "DejaVuSans.ttf",
             "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
             "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
@@ -15,239 +17,161 @@ def _candidate_fonts() -> list[str]:
             "/Library/Fonts/Arial.ttf",
             "/System/Library/Fonts/Supplemental/Arial.ttf",
         ]
-        if os.path.exists(font_path_candidate)
+        if os.path.exists(p)
     ]
 
 
-def _load_font(font_size: int, font_path: str | None) -> ImageFont.ImageFont:
+def _load_font(font_size_px: int, font_path: str | None) -> ImageFont.ImageFont:
+    """Load a truetype font, falling back to common system fonts, then default."""
     if font_path:
         try:
-            return ImageFont.truetype(font_path, font_size)
+            return ImageFont.truetype(font_path, font_size_px)
         except Exception:
             pass
     for candidate_path in _candidate_fonts():
         try:
-            return ImageFont.truetype(candidate_path, font_size)
+            return ImageFont.truetype(candidate_path, font_size_px)
         except Exception:
             pass
     return ImageFont.load_default()
 
 
 def _measure(
-    drawing_context: ImageDraw.ImageDraw, text: str, font: ImageFont.ImageFont
+    draw_ctx: ImageDraw.ImageDraw, text: str, font: ImageFont.ImageFont
 ) -> tuple[int, int]:
+    """Measure multiline text (width, height) with PIL, using a safe fallback."""
     try:
-        left, top, right, bottom = drawing_context.multiline_textbbox(
+        left, top, right, bottom = draw_ctx.multiline_textbbox(
             (0, 0), text, font=font, spacing=4, align="left"
         )
         return right - left, bottom - top
     except AttributeError:
-        return drawing_context.multiline_textsize(text, font=font, spacing=4)
+        return draw_ctx.multiline_textsize(text, font=font, spacing=4)
 
 
 def _break_word(
-    drawing_context: ImageDraw.ImageDraw,
+    draw_ctx: ImageDraw.ImageDraw,
     word: str,
-    text_font: ImageFont.ImageFont,
-    max_width: int,
+    font: ImageFont.ImageFont,
+    max_width_px: int,
 ) -> list[str]:
-    segments, current_segment = [], ""
-    for character in word:
-        test_segment = current_segment + character
-        segment_width, _ = _measure(drawing_context, test_segment, text_font)
-        if segment_width <= max_width or not current_segment:
-            current_segment = test_segment
+    """Break an overlong word into pieces that fit within max_width_px."""
+    segments: list[str] = []
+    current_segment = ""
+    for ch in word:
+        candidate = current_segment + ch
+        width, _ = _measure(draw_ctx, candidate, font)
+        if width <= max_width_px or not current_segment:
+            current_segment = candidate
         else:
             segments.append(current_segment)
-            current_segment = character
+            current_segment = ch
     if current_segment:
         segments.append(current_segment)
     return segments
 
 
-def _wrap_to_width(
-    drawing_context: ImageDraw.ImageDraw,
+def _wrap(
+    draw_ctx: ImageDraw.ImageDraw,
     text: str,
-    text_font: ImageFont.ImageFont,
-    max_width: int,
+    font: ImageFont.ImageFont,
+    max_width_px: int,
 ) -> str:
+    """Soft-wrap text to fit max_width_px, breaking long words as needed."""
     words = text.split()
     if not words:
         return ""
-    lines, current_line = [], ""
+    lines: list[str] = []
+    current_line = ""
     for word in words:
-        subparts = (
+        parts = (
             [word]
-            if _measure(drawing_context, word, text_font)[0] <= max_width
-            else _break_word(drawing_context, word, text_font, max_width)
+            if _measure(draw_ctx, word, font)[0] <= max_width_px
+            else _break_word(draw_ctx, word, font, max_width_px)
         )
-        for subpart in subparts:
-            line_candidate = (current_line + " " + subpart) if current_line else subpart
-            if _measure(drawing_context, line_candidate, text_font)[0] <= max_width:
-                current_line = line_candidate
+        for part in parts:
+            candidate_line = (current_line + " " + part) if current_line else part
+            if _measure(draw_ctx, candidate_line, font)[0] <= max_width_px:
+                current_line = candidate_line
             else:
                 if current_line:
                     lines.append(current_line)
-                current_line = subpart
+                current_line = part
     if current_line:
         lines.append(current_line)
     return "\n".join(lines)
 
 
-def _fit_text(
-    drawing_context: ImageDraw.ImageDraw,
-    title_text: str,
+def _fit(
+    draw_ctx: ImageDraw.ImageDraw,
+    text: str,
     font_path: str | None,
-    max_width: int,
-    max_height: int,
-    min_font_size: int,
-    max_font_size: int,
-    wrap_text: bool = True,
-):
-    best_fit = None
-    low_size, high_size = min_font_size, max_font_size
-    while low_size <= high_size:
-        test_size = (low_size + high_size) // 2
-        test_font = _load_font(test_size, font_path)
-        wrapped_text = (
-            _wrap_to_width(drawing_context, title_text, test_font, max_width)
-            if wrap_text
-            else title_text
+    max_width_px: int,
+    max_height_px: int,
+    min_font_px: int,
+    max_font_px: int,
+    wrap_text: bool,
+) -> tuple[ImageFont.ImageFont, str]:
+    """
+    Binary-search a font size that fits text within (max_width_px, max_height_px).
+    Returns the chosen font and the (possibly wrapped) text.
+    """
+    best_fit: tuple[ImageFont.ImageFont, str] | None = None
+    low_px, high_px = min_font_px, max_font_px
+    while low_px <= high_px:
+        mid_px = (low_px + high_px) // 2
+        trial_font = _load_font(mid_px, font_path)
+        trial_text = (
+            _wrap(draw_ctx, text, trial_font, max_width_px) if wrap_text else text
         )
-        text_width, text_height = _measure(drawing_context, wrapped_text, test_font)
-        if text_width <= max_width and text_height <= max_height:
-            best_fit = (test_font, wrapped_text)
-            low_size = test_size + 2
+        width, height = _measure(draw_ctx, trial_text, trial_font)
+        if width <= max_width_px and height <= max_height_px:
+            best_fit = (trial_font, trial_text)
+            low_px = mid_px + 2
         else:
-            high_size = test_size - 2
+            high_px = mid_px - 2
     if best_fit:
         return best_fit
-    fallback_font = _load_font(min_font_size, font_path)
-    return fallback_font, _wrap_to_width(
-        drawing_context, title_text, fallback_font, max_width
-    )
+    # Fallback to minimum font size if nothing fit
+    fallback_font = _load_font(min_font_px, font_path)
+    return fallback_font, _wrap(draw_ctx, text, fallback_font, max_width_px)
 
 
-def add_title_above(
-    image_or_path: str | Image.Image,
-    title: str,
-    *,
-    bar_height_ratio: float = 0.12,
-    bar_height_px: int | None = None,
-    padding_x: int = 24,
-    padding_y: int = 16,
-    font_path: str | None = None,
-    min_font_px: int = 14,
-    wrap_text: bool = True,
-    expand_bar_if_needed: bool = True,
-    bar_color: str = "white",
-    text_color: str = "black",
-) -> Image.Image:
-    base_image = (
-        Image.open(image_or_path) if isinstance(image_or_path, str) else image_or_path
-    )
-    base_image = base_image.convert("RGBA")
-    image_width, image_height = base_image.size
-    bar_height = (
-        bar_height_px
-        if bar_height_px is not None
-        else max(1, int(image_height * bar_height_ratio))
-    )
-
-    output_image = Image.new(
-        "RGBA", (image_width, image_height + bar_height), bar_color
-    )
-    output_image.paste(
-        base_image, (0, bar_height), base_image if base_image.mode == "RGBA" else None
-    )
-    drawing_context = ImageDraw.Draw(output_image)
-
-    text_max_width = max(1, image_width - 2 * padding_x)
-    text_max_height = max(1, bar_height - 2 * padding_y)
-
-    title_font, wrapped_title_text = _fit_text(
-        drawing_context,
-        title,
-        font_path,
-        text_max_width,
-        text_max_height,
-        min_font_px,
-        text_max_height,
-        wrap_text,
-    )
-    title_width, title_height = _measure(
-        drawing_context, wrapped_title_text, title_font
-    )
-
-    if expand_bar_if_needed and title_height + 2 * padding_y > bar_height:
-        bar_height = title_height + 2 * padding_y
-        output_image = Image.new(
-            "RGBA", (image_width, image_height + bar_height), bar_color
-        )
-        output_image.paste(
-            base_image,
-            (0, bar_height),
-            base_image if base_image.mode == "RGBA" else None,
-        )
-        drawing_context = ImageDraw.Draw(output_image)
-        text_max_height = bar_height - 2 * padding_y
-        title_font, wrapped_title_text = _fit_text(
-            drawing_context,
-            title,
-            font_path,
-            text_max_width,
-            text_max_height,
-            min_font_px,
-            text_max_height,
-            wrap_text,
-        )
-        title_width, title_height = _measure(
-            drawing_context, wrapped_title_text, title_font
-        )
-
-    text_x = (image_width - title_width) // 2
-    text_y = (bar_height - title_height) // 2
-    drawing_context.multiline_text(
-        (text_x, text_y),
-        wrapped_title_text,
-        font=title_font,
-        fill=text_color,
-        spacing=4,
-        align="center",
-    )
-    return output_image
-
-
-def _render_title_layout(
+def _prepare_layout(
     frame_size: tuple[int, int],
-    title: str,
+    title_text: str,
     *,
     bar_height_ratio: float,
     bar_height_px: int | None,
-    padding_x: int,
-    padding_y: int,
+    padding_x_px: int,
+    padding_y_px: int,
     font_path: str | None,
     min_font_px: int,
     wrap_text: bool,
-    expand_bar_if_needed: bool,
     bar_color: str,
     text_color: str,
-) -> tuple[int, ImageFont.ImageFont, str, tuple[int, int]]:
-    image_width, image_height = frame_size
+) -> dict[str, Any]:
+    """
+    Compute the title bar layout and text placement.
+    Returns a dict with explicit keys used by the compositor.
+    """
+    frame_width, frame_height = frame_size
     bar_height = (
         bar_height_px
         if bar_height_px is not None
-        else max(1, int(image_height * bar_height_ratio))
+        else max(1, int(frame_height * bar_height_ratio))
     )
-    temp_canvas = Image.new("RGBA", (image_width, image_height + bar_height), bar_color)
-    drawing_context = ImageDraw.Draw(temp_canvas)
 
-    text_max_width = max(1, image_width - 2 * padding_x)
-    text_max_height = max(1, bar_height - 2 * padding_y)
+    # Use a scratch canvas to measure text
+    scratch_canvas = Image.new("RGB", (frame_width, frame_height), bar_color)
+    draw_ctx = ImageDraw.Draw(scratch_canvas)
 
-    title_font, wrapped_title_text = _fit_text(
-        drawing_context,
-        title,
+    text_max_width = max(1, frame_width - 2 * padding_x_px)
+    text_max_height = max(1, bar_height - 2 * padding_y_px)
+
+    font, wrapped_text = _fit(
+        draw_ctx,
+        title_text,
         font_path,
         text_max_width,
         text_max_height,
@@ -255,20 +179,15 @@ def _render_title_layout(
         text_max_height,
         wrap_text,
     )
-    title_width, title_height = _measure(
-        drawing_context, wrapped_title_text, title_font
-    )
+    text_width, text_height = _measure(draw_ctx, wrapped_text, font)
 
-    if expand_bar_if_needed and title_height + 2 * padding_y > bar_height:
-        bar_height = title_height + 2 * padding_y
-        temp_canvas = Image.new(
-            "RGBA", (image_width, image_height + bar_height), bar_color
-        )
-        drawing_context = ImageDraw.Draw(temp_canvas)
-        text_max_height = bar_height - 2 * padding_y
-        title_font, wrapped_title_text = _fit_text(
-            drawing_context,
-            title,
+    # If the text still doesn't fit vertically, expand bar_height
+    if text_height + 2 * padding_y_px > bar_height:
+        bar_height = text_height + 2 * padding_y_px
+        text_max_height = bar_height - 2 * padding_y_px
+        font, wrapped_text = _fit(
+            draw_ctx,
+            title_text,
             font_path,
             text_max_width,
             text_max_height,
@@ -276,62 +195,45 @@ def _render_title_layout(
             text_max_height,
             wrap_text,
         )
-        title_width, title_height = _measure(
-            drawing_context, wrapped_title_text, title_font
-        )
+        text_width, text_height = _measure(draw_ctx, wrapped_text, font)
 
-    text_x = (image_width - title_width) // 2
-    text_y = (bar_height - title_height) // 2
-    return bar_height, title_font, wrapped_title_text, (text_x, text_y)
+    text_x = (frame_width - text_width) // 2
+    text_y = (bar_height - text_height) // 2
+
+    return {
+        "bar_height": bar_height,
+        "font": font,
+        "wrapped_text": wrapped_text,
+        "text_xy": (text_x, text_y),
+        "bar_color": bar_color,
+        "text_color": text_color,
+    }
 
 
-def _process_frame_with_layout(
-    frame_rgba: Image.Image,
-    layout_tuple: tuple[int, ImageFont.ImageFont, str, tuple[int, int]],
-    *,
-    bar_color: str,
-    text_color: str,
-) -> Image.Image:
-    frame_width, frame_height = frame_rgba.size
-    bar_height, title_font, wrapped_title_text, (text_x, text_y) = layout_tuple
-    composed_frame = Image.new(
-        "RGBA", (frame_width, frame_height + bar_height), bar_color
+def _compose_with_title(frame_rgb: Image.Image, layout: dict[str, Any]) -> Image.Image:
+    """
+    Create a new RGB image that adds a title bar above the input RGB frame.
+    """
+    frame_width, frame_height = frame_rgb.size
+    bar_height: int = layout["bar_height"]
+
+    # Create a taller canvas: title bar on top, original image below
+    output_img = Image.new(
+        "RGB", (frame_width, frame_height + bar_height), layout["bar_color"]
     )
-    composed_frame.paste(frame_rgba, (0, bar_height), frame_rgba)
-    drawing_context = ImageDraw.Draw(composed_frame)
-    drawing_context.multiline_text(
-        (text_x, text_y),
-        wrapped_title_text,
-        font=title_font,
-        fill=text_color,
+    output_img.paste(frame_rgb, (0, bar_height))
+
+    # Draw the title text inside the top bar
+    draw_ctx = ImageDraw.Draw(output_img)
+    draw_ctx.multiline_text(
+        layout["text_xy"],
+        layout["wrapped_text"],
+        font=layout["font"],
+        fill=layout["text_color"],
         spacing=4,
         align="center",
     )
-    return composed_frame
-
-
-def _save_gif(
-    frames_rgba_list: list[Image.Image],
-    frame_durations_ms: list[int],
-    loop_count: int,
-    output_path: str,
-) -> None:
-    palette_frames = [
-        frame.convert(
-            "P", palette=Image.ADAPTIVE, colors=256, dither=Image.FLOYDSTEINBERG
-        )
-        for frame in frames_rgba_list
-    ]
-    first_frame, remaining_frames = palette_frames[0], palette_frames[1:]
-    first_frame.save(
-        output_path,
-        save_all=True,
-        append_images=remaining_frames,
-        duration=frame_durations_ms,
-        loop=loop_count,
-        optimize=True,
-        disposal=2,
-    )
+    return output_img
 
 
 def add_title_above_file(
@@ -346,62 +248,126 @@ def add_title_above_file(
     font_path: str | None = None,
     min_font_px: int = 14,
     wrap_text: bool = True,
-    expand_bar_if_needed: bool = True,
     bar_color: str = "white",
     text_color: str = "black",
 ) -> None:
-    with Image.open(input_path) as source_image:
-        is_animated_gif = (
-            source_image.format == "GIF" and getattr(source_image, "is_animated", False)
+    """
+    Append a title bar on top of an image or animated GIF without cropping the original.
+    The output is taller by the title bar height; GIFs preserve timing/palette and dedupe identical frames.
+    """
+    with Image.open(input_path) as input_img:
+        is_gif = (
+            input_img.format == "GIF" and getattr(input_img, "is_animated", False)
         ) or output_path.lower().endswith(".gif")
 
-        if is_animated_gif:
-            output_frames_rgba: list[Image.Image] = []
-            frame_durations_ms: list[int] = []
-            frame_width, frame_height = source_image.size
-
-            title_layout = _render_title_layout(
-                (frame_width, frame_height),
+        if not is_gif:
+            base_rgb = input_img.convert("RGB")
+            img_width, img_height = base_rgb.size
+            layout = _prepare_layout(
+                (img_width, img_height),
                 title,
                 bar_height_ratio=bar_height_ratio,
                 bar_height_px=bar_height_px,
-                padding_x=padding_x,
-                padding_y=padding_y,
+                padding_x_px=padding_x,
+                padding_y_px=padding_y,
                 font_path=font_path,
                 min_font_px=min_font_px,
                 wrap_text=wrap_text,
-                expand_bar_if_needed=expand_bar_if_needed,
                 bar_color=bar_color,
                 text_color=text_color,
             )
-
-            for frame_index in range(getattr(source_image, "n_frames", 1)):
-                source_image.seek(frame_index)
-                frame_rgba = source_image.convert("RGBA")
-                composed_frame_rgba = _process_frame_with_layout(
-                    frame_rgba, title_layout, bar_color=bar_color, text_color=text_color
-                )
-                output_frames_rgba.append(composed_frame_rgba)
-                frame_durations_ms.append(source_image.info.get("duration", 40))
-
-            loop_count = source_image.info.get("loop", 0)
-            _save_gif(output_frames_rgba, frame_durations_ms, loop_count, output_path)
+            output_img = _compose_with_title(base_rgb, layout)
+            if output_path.lower().endswith((".jpg", ".jpeg")):
+                output_img = output_img.convert("RGB")
+            output_img.save(output_path)
             return
 
-        single_image_with_title = add_title_above(
-            source_image,
+        # Animated GIF path
+        gif_width, gif_height = input_img.size
+        layout = _prepare_layout(
+            (gif_width, gif_height),
             title,
             bar_height_ratio=bar_height_ratio,
             bar_height_px=bar_height_px,
-            padding_x=padding_x,
-            padding_y=padding_y,
+            padding_x_px=padding_x,
+            padding_y_px=padding_y,
             font_path=font_path,
             min_font_px=min_font_px,
             wrap_text=wrap_text,
-            expand_bar_if_needed=expand_bar_if_needed,
             bar_color=bar_color,
             text_color=text_color,
         )
-        if output_path.lower().endswith((".jpg", ".jpeg")):
-            single_image_with_title = single_image_with_title.convert("RGB")
-        single_image_with_title.save(output_path)
+
+        num_frames: int = getattr(input_img, "n_frames", 1)
+        frame_durations_ms: list[int] = []
+        gif_loop_count = int(input_img.info.get("loop", 0))
+        pending_duration_ms = 0
+
+        # Establish a base palette to reuse (helps keep size stable)
+        input_img.seek(0)
+        base_palette_img = Image.new("P", (1, 1))
+        if input_img.getpalette():
+            base_palette_img.putpalette(input_img.getpalette())
+        else:
+            base_palette_img = input_img.convert("P")
+
+        palettized_frames: list[Image.Image] = []
+        previous_palettized_frame: Image.Image | None = None
+
+        for frame_index in range(num_frames):
+            input_img.seek(frame_index)
+            frame_duration_ms = int(input_img.info.get("duration", 40))
+            pending_duration_ms += frame_duration_ms
+
+            frame_rgb = input_img.convert("RGB")
+            frame_with_title_rgb = _compose_with_title(frame_rgb, layout)
+            palettized_frame = frame_with_title_rgb.quantize(
+                palette=base_palette_img, dither=Image.NONE
+            )
+
+            # Collapse exact duplicates to reduce size
+            if (
+                previous_palettized_frame is not None
+                and palettized_frame.tobytes() == previous_palettized_frame.tobytes()
+            ):
+                continue
+
+            palettized_frames.append(palettized_frame)
+            frame_durations_ms.append(pending_duration_ms)
+            pending_duration_ms = 0
+            previous_palettized_frame = palettized_frame
+
+        if pending_duration_ms and palettized_frames:
+            frame_durations_ms[-1] += pending_duration_ms
+
+        try:
+            first_frame_pal = palettized_frames[0]
+        except IndexError:
+            # Degenerate case: fallback to a single frame
+            first_frame_pal = input_img.convert("P")
+            palettized_frames = [first_frame_pal]
+            frame_durations_ms = [int(input_img.info.get("duration", 40))]
+
+        # Ensure all frames share the same palette
+        for frame in palettized_frames:
+            frame.putpalette(base_palette_img.getpalette())
+
+        save_kwargs = {
+            "save_all": True,
+            "append_images": palettized_frames[1:]
+            if len(palettized_frames) > 1
+            else [],
+            "duration": frame_durations_ms
+            if frame_durations_ms
+            else [int(input_img.info.get("duration", 40))],
+            "loop": gif_loop_count,
+            "optimize": True,
+            "disposal": 2,
+        }
+
+        if "transparency" in input_img.info:
+            save_kwargs["transparency"] = input_img.info["transparency"]
+        if "background" in input_img.info:
+            save_kwargs["background"] = input_img.info["background"]
+
+        first_frame_pal.save(output_path, **save_kwargs)
