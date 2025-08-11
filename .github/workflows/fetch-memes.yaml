@@ -82,6 +82,8 @@ jobs:
             --title "$TITLE" \
             --body "$BODY"
 
+          sleep 20s
+
       - name: Wait for pre-commit CI to finish
         if: steps.commit.outputs.changed == 'true'
         env:
