@@ -1,6 +1,5 @@
 import re
 import unicodedata
-from datetime import datetime
 from enum import Enum
 from pathlib import Path
 
@@ -83,10 +82,9 @@ class Meme:
         """
 
         image_extension = self.get_extension()
-        path_title = self.prepare_title_for_path(self.title)
 
-        og_path = f"./memes/{self.source}/originals/{path_title}{datetime.today().strftime('%Y%m%d')}{image_extension}"
-        edited_path = f"./memes/{self.source}/picked/todays_{image_extension.replace('.', '')}{image_extension}"
+        og_path = f"./memes/{self.source}/original_todays_{image_extension.replace('.', '')}{image_extension}"
+        edited_path = f"./memes/{self.source}/todays_{image_extension.replace('.', '')}{image_extension}"
 
         self.download_image(og_path, edited_path)
 
