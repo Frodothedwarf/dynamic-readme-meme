@@ -63,7 +63,7 @@ jobs:
           fi
 
           git checkout -b "$BRANCH"
-          git commit -m "chore(memes): daily memes for ${DATE} [skip ci]"
+          git commit -m "chore(memes): daily memes for ${DATE}"
           git push -u origin "$BRANCH"
 
           echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
