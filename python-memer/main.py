@@ -1,45 +1,47 @@
+import importlib
+import inspect
+import logging
+import pkgutil
+
 from dotenv import load_dotenv
-from sources.base import MediaType
-from sources.programmerhumor import ProgrammerHumorMeme
-from sources.reddit import RedditMeme
+from sources.base import MemeBase
 
 load_dotenv()
 
-REDDIT_SUBREDDITS = [
-    "blunderyears",
-    "BreadStapledToTrees",
-    "cringepics",
-    "CrappyDesign",
-    "dankmemes",
-    "disneyvacation",
-    "facepalm",
-    "funny",
-    "gifs",
-    "holdmybeer",
-    "iamverysmart",
-    "Jokes",
-    "memes",
-    "MildlyVandalised",
-    "nocontextpics",
-    "PerfectTiming",
-    "ProgrammerHumor",
-    "programminghumor",
-    "trippinthroughtime",
-]
+logger = logging.getLogger(__name__)
+logging.basicConfig(format="%(message)s", level=logging.INFO)
 
-REDDIT_MEDIA_TYPES = [MediaType.IMAGE, MediaType.GIF]
+
+def load_meme_source_classes() -> list[MemeBase]:
+    meme_classes = []
+
+    # Find all sources in the folder "sources"
+    folder = importlib.import_module("sources")
+    folder_path = folder.__path__
+
+    # Iterate over possible modules
+    for _, module_name, is_pkg in pkgutil.iter_modules(folder_path):
+        if is_pkg:
+            continue
+        module = importlib.import_module(f"sources.{module_name}")
+
+        # Check the module/source have `MemeBase` as a subclass
+        for _, obj in inspect.getmembers(module, inspect.isclass):
+            if issubclass(obj, MemeBase) and obj is not MemeBase:
+                meme_classes.append(obj)
+    return meme_classes
 
 
 def main(*args, **kwargs):
     """
-    The main function that should contain all sources, and download memes for all sources.
+    The main function that finds sources from the "sources" folder, and fetches memes.
     """
 
-    programmer_humor = ProgrammerHumorMeme()
-    reddit = RedditMeme(subreddits=REDDIT_SUBREDDITS, media_types=REDDIT_MEDIA_TYPES)
-
-    reddit.fetch_and_download_memes()
-    programmer_humor.fetch_and_download_memes()
+    meme_sources = load_meme_source_classes()
+    for meme_source in meme_sources:
+        meme_source = meme_source()
+        logging.info(f"🔎 Fetching memes from {meme_source}")
+        meme_source.fetch_and_download_memes()
 
 
 if __name__ == "__main__":

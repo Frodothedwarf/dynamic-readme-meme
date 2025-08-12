@@ -1,3 +1,4 @@
+import logging
 import os
 
 import praw
@@ -9,15 +10,26 @@ class RedditMeme(MemeBase):
     SUBREDDITS = []
     MEDIA_TYPES = []
 
-    def __init__(self, subreddits: list[str], media_types: list[MediaType]):
-        self.SUBREDDITS = subreddits
-        self.MEDIA_TYPES = media_types
+    def __init__(self):
+        self.SUBREDDITS = [
+            subreddit.strip()
+            for subreddit in os.environ.get("REDDIT_SUBREDDITS").split(",")
+        ]
+        self.MEDIA_TYPES = [MediaType.IMAGE, MediaType.GIF]
+
+        logging.debug(
+            f"Reddit Source: Fetching memes from subreddits; {self.SUBREDDITS}"
+        )
+        logging.debug(f"Reddit Source: Allowed MEDIA_TYPES; {self.MEDIA_TYPES}")
 
         self.reddit_client = praw.Reddit(
             client_id=os.environ.get("REDDIT_CLIENT_ID"),
             client_secret=os.environ.get("REDDIT_CLIENT_SECRET"),
             user_agent=os.environ.get("REDDIT_USER_AGENT"),
         )
+
+    def __str__(self):
+        return "Reddit"
 
     def get_media_type(self, post: Submission) -> MediaType:
         if (
@@ -67,7 +79,9 @@ class RedditMeme(MemeBase):
 
     def fetch_and_download_memes(self) -> None:
         for subreddit in self.SUBREDDITS:
+            logging.info(f"⛏️ Looking into {subreddit}")
             memes = self.fetch_meme(subreddit, "day")
 
+            logging.info(f"📚 Found {len(memes)} memes in {subreddit}")
             for meme in memes:
                 meme.download_image_and_convert()

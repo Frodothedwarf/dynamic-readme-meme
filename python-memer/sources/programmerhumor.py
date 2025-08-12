@@ -1,3 +1,5 @@
+import logging
+
 import requests
 from base import USER_AGENT_HEADERS
 from bs4 import BeautifulSoup
@@ -6,6 +8,9 @@ from sources.base import MediaType, Meme, MemeBase
 
 class ProgrammerHumorMeme(MemeBase):
     MEME_URL = "https://programmerhumor.io/hot"
+
+    def __str__(self):
+        return "ProgrammerHumor.io"
 
     def fetch_meme(self) -> list[Meme]:
         response = requests.get(self.MEME_URL, headers=USER_AGENT_HEADERS)
@@ -27,6 +32,8 @@ class ProgrammerHumorMeme(MemeBase):
         ]
 
     def fetch_and_download_memes(self) -> None:
-        programmer_humor_memes = self.fetch_meme()
-        for meme in programmer_humor_memes:
+        memes = self.fetch_meme()
+        logging.info(f"📚 Found {len(memes)} memes on {self.__str__()}")
+
+        for meme in memes:
             meme.download_image_and_convert()
