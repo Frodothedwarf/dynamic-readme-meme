@@ -1,5 +1,5 @@
 import requests
-from base import USER_AGENT_HEADERS
+from ..base import USER_AGENT_HEADERS
 
 
 def download_image(url: str, str_path: str):

@@ -32,7 +32,7 @@ jobs:
       - name: "Limit working tree to code only"
         run: |
           git sparse-checkout init --cone
-          git sparse-checkout set python-memer
+          git sparse-checkout set src/python_memer
           git remote set-url origin \
             https://x-access-token:${{ steps.app-token.outputs.token }}@github.com/${{ github.repository }}.git
 
@@ -43,7 +43,7 @@ jobs:
 
       - name: "Install dependencies"
         run: |
-          pip install -r python-memer/requirements.txt
+          pip install -r src/python_memer/requirements.txt
           sudo apt install -y gifsicle
 
       - name: "Fetch all meme sources"
@@ -52,7 +52,7 @@ jobs:
           REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
           REDDIT_USER_AGENT: ${{ secrets.REDDIT_USER_AGENT }}
         run: |
-          python python-memer/main.py
+          python src/python_memer/main.py
 
       - name: "Commit & push daily memes"
         id: commit

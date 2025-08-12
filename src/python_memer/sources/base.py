@@ -3,8 +3,8 @@ import unicodedata
 from enum import Enum
 from pathlib import Path
 
-from image.downloader import download_image
-from image.generator import add_title_above_file
+from ..image.downloader import download_image
+from ..image.generator import add_title_above_file
 
 
 class MediaType(Enum):

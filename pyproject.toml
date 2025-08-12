@@ -1,0 +1,11 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "python_memer"
+version = "0.0.0"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+packages = ["python_memer"]

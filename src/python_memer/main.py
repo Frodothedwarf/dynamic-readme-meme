@@ -4,7 +4,7 @@ import logging
 import pkgutil
 
 from dotenv import load_dotenv
-from sources.base import MemeBase
+from .sources.base import MemeBase
 
 load_dotenv()
 
@@ -16,14 +16,14 @@ def load_meme_source_classes() -> list[MemeBase]:
     meme_classes = []
 
     # Find all sources in the folder "sources"
-    folder = importlib.import_module("sources")
+    folder = importlib.import_module("python_memer.sources")
     folder_path = folder.__path__
 
     # Iterate over possible modules
     for _, module_name, is_pkg in pkgutil.iter_modules(folder_path):
         if is_pkg:
             continue
-        module = importlib.import_module(f"sources.{module_name}")
+        module = importlib.import_module(f"python_memer.sources.{module_name}")
 
         # Check the module/source have `MemeBase` as a subclass
         for _, obj in inspect.getmembers(module, inspect.isclass):

@@ -3,7 +3,7 @@ import os
 
 import praw
 from praw.models import Submission
-from sources.base import MediaType, Meme, MemeBase
+from .base import MediaType, Meme, MemeBase
 
 
 class RedditMeme(MemeBase):

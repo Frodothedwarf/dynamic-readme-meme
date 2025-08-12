@@ -1,9 +1,9 @@
 import logging
 
 import requests
-from base import USER_AGENT_HEADERS
+from ..base import USER_AGENT_HEADERS
 from bs4 import BeautifulSoup
-from sources.base import MediaType, Meme, MemeBase
+from .base import MediaType, Meme, MemeBase
 
 
 class ProgrammerHumorMeme(MemeBase):
