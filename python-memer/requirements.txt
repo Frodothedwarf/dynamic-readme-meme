@@ -1,6 +1,6 @@
-beautifulsoup4==4.13.4
+beautifulsoup4==4.13.5
 pillow==11.3.0
 praw==7.8.1
 pygifsicle==1.1.0
 python-dotenv==1.1.1
-requests==2.32.4
+requests==2.32.5
