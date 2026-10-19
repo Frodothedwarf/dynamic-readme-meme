@@ -20,7 +20,7 @@ repos:
     args: ["-ll", "-ii"]
 
 - repo: https://github.com/astral-sh/ruff-pre-commit
-  rev: v0.15.12
+  rev: v0.17.1
   hooks:
     - id: ruff
       args: [--config, .ruff.toml, --fix]
@@ -28,6 +28,6 @@ repos:
       args: [--config, .ruff.toml]
 
 - repo: https://github.com/asottile/pyupgrade
-  rev: v3.21.2
+  rev: v3.22.0
   hooks:
   - id: pyupgrade
